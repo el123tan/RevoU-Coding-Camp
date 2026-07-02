@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cat Clicker — Pet the Cat!</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root {
+      --color-wall: #f5f0e8;
+      --color-sky: #87CEEB;
+      --color-cat: #E8851A;
+      --color-cat-dark: #C06A10;
+      --color-floor-light: #D4A045;
+      --color-floor-mid: #C8933F;
+      --color-floor-dark: #C0882E;
+      --color-blanket: #FFB6C1;
+      --color-curtain: #FFD700;
+      --color-window-frame: #8B6914;
+    }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+    }
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Window area */
+    #window-area {
+      position: absolute;
+      top: 5%;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 28%;
+      display: flex;
+      align-items: flex-start;
+    }
+
+    /* Window frame */
+    #window {
+      width: 56%;
+      border: 6px solid #8B6914;
+      border-radius: 4px;
+      overflow: hidden;
+      background: #8B6914;
+    }
+
+    /* Sky pane */
+    #sky {
+      background: #87CEEB;
+      position: relative;
+      padding-bottom: 70%;
+    }
+
+    /* Clouds */
+    .cloud {
+      position: absolute;
+      background: white;
+      border-radius: 50px;
+    }
+
+    /* Curtains */
+    .curtain {
+      width: 22%;
+      height: 0;
+      padding-bottom: 55%;
+      background-color: #FFD700;
+      background-image: radial-gradient(circle, #FF69B4 2px, transparent 2px);
+      background-size: 12px 12px;
+      border-radius: 0 0 30% 30%;
+    }
+
+    /* Floor */
+    #floor {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      width: 100%;
+      height: 22%;
+      background:
+        repeating-linear-gradient(
+          90deg,
+          transparent,
+          transparent 120px,
+          rgba(0,0,0,0.08) 120px,
+          rgba(0,0,0,0.08) 122px
+        ),
+        repeating-linear-gradient(
+          180deg,
+          #C8933F,
+          #D4A045 20px,
+          #C0882E 20px,
+          #C0882E 22px,
+          #D4A045 22px,
+          #D4A045 80px
+        );
+    }
+
+    /* Cat Bed */
+    #cat-bed {
+      position: absolute;
+      bottom: 18%;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 28%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .cat-blanket {
+      position: absolute;
+      bottom: 0;
+      width: 90%;
+      height: 40%;
+      background: linear-gradient(180deg, #FFB6C1, #FF8FAB);
+      border-radius: 50% 50% 20% 20%;
+      z-index: 0;
+    }
+
+    /* Cat oval base */
+    #cat-bed::before {
+      content: '';
+      position: absolute;
+      bottom: -8%;
+      width: 100%;
+      height: 30%;
+      background: linear-gradient(180deg, #8B5A2B, #6B3A1A);
+      border-radius: 60% 60% 40% 40%;
+      z-index: -1;
+    }
+
+    /* Cat */
+    #cat {
+      position: relative;
+      width: 70%;
+      z-index: 1;
+      filter: brightness(1);
+      transition: filter 150ms ease, box-shadow 150ms ease;
+    }
+
+    /* Hover and focus glow */
+    #cat:hover,
+    #cat:focus-visible {
+      filter: brightness(1.15);
+      box-shadow: 0 0 12px 4px rgba(255, 200, 80, 0.7);
+    }
+
+    /* Keyboard focus indicator */
+    /* #FFB800 amber only achieves ~1.53:1 contrast against #f5f0e8 beige, failing
+       WCAG 2.1 SC 1.4.11 (3:1 for non-text UI components).
+       #2C1810 dark brown achieves ~14.87:1 — well above the 3:1 threshold. */
+    #cat:focus-visible {
+      outline: 3px solid #2C1810;
+      outline-offset: 4px;
+    }
+
+    /* Happy eyes toggle */
+    #cat.cat--happy-eyes .eye-default {
+      display: none;
+    }
+    #cat.cat--happy-eyes .eye-happy {
+      display: block;
+    }
+
+    /* hide happy eyes by default */
+    .eye-happy {
+      display: none;
+    }
+
+    /* Scene container */
+    #scene {
+      width: 900px;
+      aspect-ratio: 4 / 3;
+      max-width: 100vw;
+      overflow: hidden;
+    }
+
+    /* Cat bounce animation */
+    @keyframes cat-bounce {
+      0%   { transform: translateY(0) scale(1); }
+      30%  { transform: translateY(-12px) scale(1.05, 0.95); }
+      55%  { transform: translateY(0) scale(0.97, 1.03); }
+      75%  { transform: translateY(-5px) scale(1.02, 0.98); }
+      100% { transform: translateY(0) scale(1); }
+    }
+    .cat--bounce {
+      animation: cat-bounce 400ms ease-out forwards;
+    }
+
+    /* Float-up animation for floating elements */
+    @keyframes float-up {
+      0%   { transform: translateY(0);     opacity: 1; }
+      100% { transform: translateY(-80px); opacity: 0; }
+    }
+    .floating-element {
+      position: absolute;
+      bottom: 60%;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 2rem;
+      pointer-events: none;
+      animation: float-up 1000ms ease-out forwards;
+    }
+
+    /* Milestone overlay fade-out */
+    @keyframes fade-out {
+      0%   { opacity: 1; }
+      100% { opacity: 0; }
+    }
+    .milestone-fade {
+      animation: fade-out 500ms ease-out forwards;
+    }
+
+    /* Speech bubble */
+    #speech-bubble {
+      position: absolute;
+      bottom: 105%;
+      left: 50%;
+      transform: translateX(-50%);
+      background: white;
+      border: 2px solid #E8851A;
+      border-radius: 12px;
+      padding: 6px 14px;
+      font-size: 1.1rem;
+      font-weight: bold;
+      color: #2C1810;
+      white-space: nowrap;
+      opacity: 0;
+      transition: opacity 150ms ease;
+      pointer-events: none;
+      z-index: 10;
+    }
+    #speech-bubble::after {
+      content: '';
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      border: 8px solid transparent;
+      border-top-color: #E8851A;
+    }
+
+    /* Scale down on mobile */
+    @media (max-width: 767px) {
+      #scene {
+        width: 100vw;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="scene" class="relative overflow-hidden mx-auto w-full md:w-[900px]" style="aspect-ratio: 4/3;">
+    <div id="background" class="absolute inset-0" style="background-color: #f5f0e8;">
+      <div id="window-area">
+        <!-- left curtain -->
+        <div class="curtain curtain-left"></div>
+        <!-- window frame + sky -->
+        <div id="window">
+          <div id="sky">
+            <div class="cloud" style="top:15%; left:8%; width:35%; height:18%;"></div>
+            <div class="cloud" style="top:45%; left:50%; width:30%; height:15%;"></div>
+          </div>
+        </div>
+        <!-- right curtain -->
+        <div class="curtain curtain-right"></div>
+      </div>
+    </div>
+    <!-- Cat Bed -->
+    <div id="cat-bed">
+      <div class="cat-blanket"></div>
+      <div id="cat" role="button" tabindex="0" aria-label="Pet the cat" class="relative cursor-pointer">
+        <svg id="cat-svg" viewBox="0 0 120 160" xmlns="http://www.w3.org/2000/svg" style="width:100%; height:100%;">
+          <!-- Body -->
+          <ellipse cx="60" cy="105" rx="42" ry="36" fill="#E8851A"/>
+          <!-- Body stripes -->
+          <ellipse cx="60" cy="105" rx="42" ry="36" fill="none" clip-path="url(#body-clip)"/>
+          <clipPath id="body-clip">
+            <ellipse cx="60" cy="105" rx="42" ry="36"/>
+          </clipPath>
+          <rect x="40" y="75" width="6" height="60" fill="#C06A10" opacity="0.5" clip-path="url(#body-clip)"/>
+          <rect x="55" y="72" width="5" height="62" fill="#C06A10" opacity="0.5" clip-path="url(#body-clip)"/>
+          <rect x="70" y="75" width="6" height="60" fill="#C06A10" opacity="0.5" clip-path="url(#body-clip)"/>
+          <!-- Head -->
+          <circle cx="60" cy="56" r="38" fill="#E8851A"/>
+          <!-- Head stripes -->
+          <line x1="52" y1="22" x2="50" y2="35" stroke="#C06A10" stroke-width="3" stroke-linecap="round"/>
+          <line x1="60" y1="20" x2="60" y2="33" stroke="#C06A10" stroke-width="3" stroke-linecap="round"/>
+          <line x1="68" y1="22" x2="70" y2="35" stroke="#C06A10" stroke-width="3" stroke-linecap="round"/>
+          <!-- Ears -->
+          <polygon points="28,30 18,4 46,22" fill="#E8851A"/>
+          <polygon points="92,30 102,4 74,22" fill="#E8851A"/>
+          <!-- Inner ears -->
+          <polygon points="31,28 23,8 44,21" fill="#FFB6C1"/>
+          <polygon points="89,28 97,8 76,21" fill="#FFB6C1"/>
+          <!-- Eyes group -->
+          <g id="cat-eyes">
+            <circle class="eye-default" cx="44" cy="54" r="7" fill="#2C1810"/>
+            <circle class="eye-default" cx="44" cy="54" r="3" fill="white" opacity="0.4"/>
+            <circle class="eye-default" cx="76" cy="54" r="7" fill="#2C1810"/>
+            <circle class="eye-default" cx="76" cy="54" r="3" fill="white" opacity="0.4"/>
+            <path class="eye-happy" d="M37,54 Q44,46 51,54" stroke="#2C1810" stroke-width="3" fill="none" stroke-linecap="round"/>
+            <path class="eye-happy" d="M69,54 Q76,46 83,54" stroke="#2C1810" stroke-width="3" fill="none" stroke-linecap="round"/>
+          </g>
+          <!-- Nose -->
+          <polygon points="57,67 63,67 60,71" fill="#FFB6C1"/>
+          <!-- Mouth -->
+          <path d="M57,72 Q60,76 63,72" stroke="#2C1810" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+          <!-- Whiskers left -->
+          <line x1="15" y1="66" x2="48" y2="68" stroke="#8B6914" stroke-width="1.5"/>
+          <line x1="12" y1="72" x2="46" y2="72" stroke="#8B6914" stroke-width="1.5"/>
+          <!-- Whiskers right -->
+          <line x1="72" y1="68" x2="105" y2="66" stroke="#8B6914" stroke-width="1.5"/>
+          <line x1="74" y1="72" x2="108" y2="72" stroke="#8B6914" stroke-width="1.5"/>
+          <!-- Tail -->
+          <path d="M96,132 Q132,112 126,84 Q120,68 107,78" stroke="#E8851A" stroke-width="10" fill="none" stroke-linecap="round"/>
+          <path d="M96,132 Q132,112 126,84 Q120,68 107,78" stroke="#C06A10" stroke-width="4" fill="none" stroke-linecap="round" opacity="0.4"/>
+          <!-- Paws -->
+          <ellipse cx="42" cy="138" rx="14" ry="8" fill="#E8851A"/>
+          <ellipse cx="78" cy="138" rx="14" ry="8" fill="#E8851A"/>
+          <!-- Paw toe lines -->
+          <line x1="36" y1="140" x2="36" y2="144" stroke="#C06A10" stroke-width="1.5" stroke-linecap="round"/>
+          <line x1="42" y1="142" x2="42" y2="146" stroke="#C06A10" stroke-width="1.5" stroke-linecap="round"/>
+          <line x1="48" y1="140" x2="48" y2="144" stroke="#C06A10" stroke-width="1.5" stroke-linecap="round"/>
+          <line x1="72" y1="140" x2="72" y2="144" stroke="#C06A10" stroke-width="1.5" stroke-linecap="round"/>
+          <line x1="78" y1="142" x2="78" y2="146" stroke="#C06A10" stroke-width="1.5" stroke-linecap="round"/>
+          <line x1="84" y1="140" x2="84" y2="144" stroke="#C06A10" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+      </div>
+    </div>
+
+    <div id="floating-container" class="absolute inset-0 pointer-events-none overflow-hidden"></div>
+    <div id="floor"></div>
+  </div>
+
+  <div id="counter-display" class="fixed top-4 right-4 z-50 bg-white bg-opacity-90 rounded-xl px-4 py-2 text-lg font-bold shadow-md">
+    🐾 <span id="counter-value">0</span> Pets
+  </div>
+
+  <div id="milestone-overlay" class="hidden fixed inset-0 flex items-center justify-center z-50">
+    <div class="bg-white rounded-xl shadow-2xl px-10 py-6 text-2xl font-bold text-center" id="milestone-message"></div>
+  </div>
+
+  <div id="aria-live" role="status" aria-live="polite" class="sr-only"></div>
+
+  <script>
+  // ─── App State ───────────────────────────────────────────────────────────────
+  const AppState = {
+    clickCount: 0,
+    lastReactionIndex: -1,
+    animationPlaying: false,
+    pendingReaction: null,
+  };
+
+  // ─── Reaction Pool ────────────────────────────────────────────────────────────
+  const REACTION_POOL = [
+    { id: 'heart',      label: 'Heart',       type: 'float',    content: '❤️',      durationMs: 1000 },
+    { id: 'music-note', label: 'Purring',     type: 'float',    content: '♪',       durationMs: 1000 },
+    { id: 'star',       label: 'Star',        type: 'float',    content: '⭐',      durationMs: 1000 },
+    { id: 'purr',       label: 'Purrrr~',     type: 'bubble',   content: 'Purrrr~', durationMs: 1500 },
+    { id: 'mrrrow',     label: 'Mrrrow!',     type: 'bubble',   content: 'Mrrrow!', durationMs: 1500 },
+    { id: 'zzz',        label: 'Sleepy Zzz',  type: 'float',    content: 'Zzz',     durationMs: 1000 },
+    { id: 'fish',       label: 'Fish',        type: 'float',    content: '🐟',      durationMs: 1000 },
+    { id: 'happy-eyes', label: 'Happy Eyes',  type: 'cat-anim', catClass: 'cat--happy-eyes', durationMs: 800 },
+  ];
+
+  // ─── Milestones ───────────────────────────────────────────────────────────────
+  const MILESTONES = [10, 50, 100, 500, 1000];
+  const MILESTONE_MESSAGES = {
+    10:   '🎉 10 Pets! The cat approves!',
+    50:   '😻 50 Pets! You\'re a cat whisperer!',
+    100:  '💯 100 Pets! Legendary petter!',
+    500:  '🏆 500 Pets! The cat is purring non-stop!',
+    1000: '👑 1000 Pets! You are the Cat Clicker Champion!',
+  };
+
+  // ─── localStorage Adapter ─────────────────────────────────────────────────────
+  function loadCount() {
+    try {
+      const stored = localStorage.getItem('cat-clicker-count');
+      return stored !== null ? parseInt(stored, 10) : 0;
+    } catch {
+      return 0;
+    }
+  }
+
+  function saveCount(n) {
+    try {
+      localStorage.setItem('cat-clicker-count', String(n));
+    } catch {
+      // silent fail — count still works in-memory
+    }
+  }
+
+  // ─── Reaction Selector ────────────────────────────────────────────────────────
+  function selectReaction(pool, lastIndex) {
+    if (pool.length === 1) return pool[0];
+    let idx;
+    do {
+      idx = Math.floor(Math.random() * pool.length);
+    } while (idx === lastIndex);
+    return pool[idx];
+  }
+
+  // ─── Milestone Checker ────────────────────────────────────────────────────────
+  function checkMilestone(prev, next) {
+    for (const m of MILESTONES) {
+      if (prev < m && next >= m) return m;
+    }
+    return null;
+  }
+
+  // ─── Core Interaction Handler ─────────────────────────────────────────────────
+  function handleInteraction() {
+    const prev = AppState.clickCount;
+    AppState.clickCount += 1;
+    const next = AppState.clickCount;
+
+    // Persist count
+    saveCount(next);
+
+    // Update counter display (wired in task 6.6)
+    updateCounterDisplay();
+
+    // Check milestone (wired in task 6.6)
+    const milestone = checkMilestone(prev, next);
+    if (milestone !== null) {
+      showMilestoneOverlay(milestone);
+    }
+
+    // Select next reaction
+    const reaction = selectReaction(REACTION_POOL, AppState.lastReactionIndex);
+    const newIdx = REACTION_POOL.indexOf(reaction);
+    AppState.lastReactionIndex = newIdx;
+
+    // Queue or play reaction
+    if (AppState.animationPlaying) {
+      // Replace queued reaction with latest one
+      AppState.pendingReaction = reaction;
+    } else {
+      // Play reaction immediately
+      playReaction(reaction);
+    }
+  }
+
+  // ─── Counter Display Update ───────────────────────────────────────────────────
+  function updateCounterDisplay() {
+    document.getElementById('counter-value').textContent = AppState.clickCount;
+  }
+
+  // ─── Milestone Overlay ───────────────────────────────────────────────────────
+  function showMilestoneOverlay(m) {
+    const overlay = document.getElementById('milestone-overlay');
+    const msg = document.getElementById('milestone-message');
+    // Replace content immediately (handles case where overlay is already visible)
+    msg.textContent = MILESTONE_MESSAGES[m] || '';
+    overlay.classList.remove('hidden', 'milestone-fade');
+    // Force reflow so animation restarts cleanly
+    void overlay.offsetWidth;
+
+    // Auto-hide after 2000ms with fade-out over 500ms
+    setTimeout(() => {
+      overlay.classList.add('milestone-fade');
+      overlay.addEventListener('animationend', () => {
+        overlay.classList.add('hidden');
+        overlay.classList.remove('milestone-fade');
+      }, { once: true });
+    }, 2000);
+  }
+  // ─── Reaction Renderer ───────────────────────────────────────────────────────
+  function playReaction(reaction) {
+    const catEl = document.getElementById('cat');
+    const floatContainer = document.getElementById('floating-container');
+    const ariaLive = document.getElementById('aria-live');
+
+    // Announce to screen readers
+    ariaLive.textContent = reaction.label;
+
+    // Trigger cat bounce
+    catEl.classList.remove('cat--bounce');
+    // Force reflow to restart animation
+    void catEl.offsetWidth;
+    catEl.classList.add('cat--bounce');
+    AppState.animationPlaying = true;
+
+    // Set safety timeout in case animationend never fires
+    const safetyMs = (reaction.durationMs || 1000) + 200;
+    const safetyTimer = setTimeout(() => {
+      drainReactionQueue();
+    }, safetyMs);
+
+    // Store timeout so animationend can cancel it
+    catEl._safetyTimer = safetyTimer;
+
+    // Render the reaction type
+    if (reaction.type === 'float') {
+      const span = document.createElement('span');
+      span.textContent = reaction.content;
+      span.classList.add('floating-element');
+      floatContainer.appendChild(span);
+      span.addEventListener('animationend', () => {
+        span.remove();
+      }, { once: true });
+
+    } else if (reaction.type === 'bubble') {
+      // Get or create speech bubble
+      let bubble = document.getElementById('speech-bubble');
+      if (!bubble) {
+        bubble = document.createElement('div');
+        bubble.id = 'speech-bubble';
+        catEl.appendChild(bubble);
+      }
+      bubble.textContent = reaction.content;
+      bubble.style.opacity = '1';
+      setTimeout(() => {
+        bubble.style.opacity = '0';
+      }, reaction.durationMs);
+
+    } else if (reaction.type === 'cat-anim') {
+      catEl.classList.add(reaction.catClass);
+      setTimeout(() => {
+        catEl.classList.remove(reaction.catClass);
+      }, reaction.durationMs);
+    }
+  }
+
+  // ─── Animation Queue Drain ───────────────────────────────────────────────────
+  function drainReactionQueue() {
+    const catEl = document.getElementById('cat');
+    // Cancel safety timer
+    if (catEl._safetyTimer) {
+      clearTimeout(catEl._safetyTimer);
+      catEl._safetyTimer = null;
+    }
+    catEl.classList.remove('cat--bounce');
+    if (AppState.pendingReaction) {
+      const next = AppState.pendingReaction;
+      AppState.pendingReaction = null;
+      playReaction(next);
+    } else {
+      AppState.animationPlaying = false;
+    }
+  }
+
+  // ─── App Initialization ───────────────────────────────────────────────────────
+  document.addEventListener('DOMContentLoaded', () => {
+    // Restore count from localStorage
+    AppState.clickCount = loadCount();
+    document.getElementById('counter-value').textContent = AppState.clickCount;
+
+    const catEl = document.getElementById('cat');
+
+    // Pointer/click listener
+    catEl.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      handleInteraction();
+    });
+
+    // Keyboard listener (Space / Enter)
+    catEl.addEventListener('keydown', (e) => {
+      if (e.code === 'Space' || e.code === 'Enter') {
+        e.preventDefault();
+        handleInteraction();
+      }
+    });
+
+    // Animation end — drain queue
+    catEl.addEventListener('animationend', (e) => {
+      if (e.animationName === 'cat-bounce') {
+        drainReactionQueue();
+      }
+    });
+  });
+  </script>
+</body>
+</html>
